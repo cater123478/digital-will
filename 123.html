@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <title>极简数字遗嘱箱</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+        body {
+            background-color: #f5f5f5;
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: none;
+        }
+        .container.active {
+            display: block;
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-size: 14px;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border 0.2s;
+            -webkit-appearance: none;
+        }
+        input:focus, textarea:focus, select:focus {
+            border-color: #409eff;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .btn {
+            background-color: #409eff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 16px;
+            transition: background 0.2s;
+            -webkit-appearance: none;
+            touch-action: manipulation;
+        }
+        .btn:hover {
+            background-color: #337ecc;
+        }
+        .btn-secondary {
+            background-color: #909399;
+        }
+        .btn-secondary:hover {
+            background-color: #73767a;
+        }
+        .btn-reset {
+            background-color: #f56c6c;
+        }
+        .btn-reset:hover {
+            background-color: #e64949;
+        }
+        .radio-group {
+            display: flex;
+            gap: 16px;
+            margin-top: 8px;
+        }
+        .radio-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            border: 1px solid #ddd;
+            border-radius: 50%;
+            -webkit-appearance: radio;
+            appearance: radio;
+        }
+        .status-box {
+            background-color: #e8f4fd;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            color: #666;
+        }
+        .error-tip {
+            color: #f56c6c;
+            font-size: 12px;
+            margin-top: 4px;
+            display: none;
+            font-weight: bold;
+            padding: 4px 8px;
+            background-color: #fff2f2;
+            border-radius: 4px;
+            border-left: 3px solid #f56c6c;
+            transition: all 0.2s ease;
+        }
+        .error-tip.show {
+            display: block;
+            animation: shake 0.3s ease;
+        }
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-2px); }
+            50% { transform: translateX(2px); }
+            75% { transform: translateX(-2px); }
+            100% { transform: translateX(0); }
+        }
+        #edit-container {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 999;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        #edit-form {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            margin: 20px auto;
+        }
+        .edit-btns {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .edit-btns .btn {
+            flex: 1;
+            margin-top: 0;
+        }
+        /* 语音录制相关样式 */
+        .voice-text-option {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 12px;
+            align-items: center;
+        }
+        .voice-recorder {
+            background-color: #f8f9fa;
+            border: 1px dashed #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin-top: 8px;
+            display: none;
+        }
+        .voice-recorder.active {
+            display: block;
+        }
+        .record-btn {
+            background-color: #f56c6c;
+            width: auto;
+            padding: 10px 20px;
+            margin-top: 0;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .record-btn.recording {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { background-color: #f56c6c; }
+            50% { background-color: #e03131; }
+            100% { background-color: #f56c6c; }
+        }
+        .record-status {
+            margin: 12px 0;
+            font-size: 13px;
+            color: #666;
+        }
+        .timer {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            margin: 10px 0;
+        }
+        .voice-preview {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #eee;
+            display: none;
+        }
+        .voice-preview.active {
+            display: block;
+        }
+        .preview-btn {
+            background-color: #67c23a;
+            width: auto;
+            padding: 8px 16px;
+            margin-top: 0;
+            border-radius: 20px;
+            font-size: 13px;
+        }
+        /* 动态倒计时样式 */
+        .countdown-container {
+            margin-top: 8px;
+            padding: 12px;
+            background-color: #f0f9ff;
+            border-radius: 8px;
+            border-left: 3px solid #409eff;
+        }
+        .countdown-title {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        .countdown-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #409eff;
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+        .countdown-unit {
+            font-size: 12px;
+            color: #888;
+            align-self: flex-end;
+            margin-bottom: 2px;
+        }
+        .expired {
+            color: #f56c6c !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- 步骤1：设置密码 -->
+    <div class="container active" id="step1">
+        <h2>设置解锁密码</h2>
+        <div class="form-group">
+            <label for="password">设置6位以上密码（仅保存在本地）</label>
+            <input type="password" id="password" placeholder="请输入密码">
+            <div class="error-tip" id="pwd-length-error">密码长度不能少于6位</div>
+        </div>
+        <div class="form-group">
+            <label for="password-confirm">确认密码</label>
+            <input type="password" id="password-confirm" placeholder="请再次输入密码">
+            <div class="error-tip" id="pwd-confirm-error">两次输入的密码不一致</div>
+        </div>
+        <button class="btn" id="step1-next">下一步</button>
+    </div>
+
+    <!-- 步骤2：紧急联系人 -->
+    <div class="container" id="step2">
+        <h2>紧急联系人信息</h2>
+        <div class="form-group">
+            <label for="contact-name">联系人姓名</label>
+            <input type="text" id="contact-name" placeholder="请输入联系人姓名">
+            <div class="error-tip" id="name-error">请输入联系人姓名</div>
+        </div>
+        <div class="form-group">
+            <label for="contact-phone">联系人电话</label>
+            <input type="tel" id="contact-phone" placeholder="请输入联系人电话">
+            <div class="error-tip" id="phone-error">请输入联系人电话</div>
+        </div>
+        <div class="form-group">
+            <label for="check-interval">失联检查周期</label>
+            <select id="check-interval">
+                <option value="7">每周签到一次</option>
+                <option value="14">每两周签到一次</option>
+                <option value="30">每月签到一次</option>
+            </select>
+        </div>
+        <button class="btn btn-secondary" id="step2-prev">上一步</button>
+        <button class="btn" id="step2-next">下一步</button>
+    </div>
+
+    <!-- 步骤3：核心遗嘱信息 -->
+    <div class="container" id="step3">
+        <h2>核心嘱托信息</h2>
+        <div class="form-group">
+            <label for="file-location">重要文件存放位置</label>
+            <textarea id="file-location" placeholder="例如：房产证在主卧衣柜第二个抽屉，银行卡密码存在手机备忘录加密文件夹..."></textarea>
+        </div>
+        <div class="form-group">
+            <label>想告别的话</label>
+            <!-- 新增：语音/文本选择器 -->
+            <div class="voice-text-option">
+                <div class="radio-item">
+                    <input type="radio" name="last-words-type" id="type-text" value="text" checked>
+                    <label for="type-text">文本输入</label>
+                </div>
+                <div class="radio-item">
+                    <input type="radio" name="last-words-type" id="type-voice" value="voice">
+                    <label for="type-voice">语音录制（1分钟）</label>
+                </div>
+            </div>
+            <!-- 文本输入框 -->
+            <textarea id="last-words-text" placeholder="想对家人/朋友说的最后一段话..." class="last-words-input"></textarea>
+            <!-- 语音录制容器 -->
+            <div class="voice-recorder" id="voice-recorder">
+                <button class="btn record-btn" id="record-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="6" fill="white"/>
+                    </svg>
+                    开始录制
+                </button>
+                <div class="timer" id="record-timer">00:00</div>
+                <div class="record-status" id="record-status">点击按钮开始录制，最长1分钟</div>
+                <!-- 语音预览区域 -->
+                <div class="voice-preview" id="voice-preview">
+                    <p style="font-size: 13px; color: #666; margin-bottom: 8px;">已录制完成，点击播放预览：</p>
+                    <button class="btn preview-btn" id="play-btn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M5 3L19 12L5 21V3Z" fill="white"/>
+                        </svg>
+                        播放语音
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>是否愿意捐赠器官</label>
+            <div class="radio-group">
+                <div class="radio-item">
+                    <input type="radio" name="donate" id="donate-yes" value="是">
+                    <label for="donate-yes">是</label>
+                </div>
+                <div class="radio-item">
+                    <input type="radio" name="donate" id="donate-no" value="否" checked>
+                    <label for="donate-no">否</label>
+                </div>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="other-notes">其他特殊嘱托</label>
+            <textarea id="other-notes" placeholder="例如：葬礼希望简办，骨灰撒入大海..."></textarea>
+        </div>
+        <button class="btn btn-secondary" id="step3-prev">上一步</button>
+        <button class="btn" id="save-btn">保存并完成</button>
+    </div>
+
+    <!-- 主界面：签到+查看+重置 -->
+    <div class="container" id="main">
+        <h2>极简数字遗嘱箱</h2>
+        <div class="status-box" id="status">
+            上次签到时间：<span id="last-checkin">未签到</span>
+            <!-- 新增：动态倒计时区域 -->
+            <div class="countdown-container">
+                <div class="countdown-title">距离下次签到截止</div>
+                <div class="countdown-value" id="dynamic-countdown">
+                    <span class="days">00</span><span class="countdown-unit">天</span>
+                    <span class="hours">00</span><span class="countdown-unit">时</span>
+                    <span class="minutes">00</span><span class="countdown-unit">分</span>
+                    <span class="seconds">00</span><span class="countdown-unit">秒</span>
+                </div>
+            </div>
+        </div>
+        <button class="btn" id="checkin-btn">今日签到</button>
+        <button class="btn btn-secondary" style="margin-top: 8px;" id="edit-btn">编辑/查看遗嘱信息</button>
+        <button class="btn btn-reset" style="margin-top: 8px;" id="reset-btn">重置所有数据</button>
+    </div>
+
+    <!-- 编辑弹窗 -->
+    <div id="edit-container">
+        <div id="edit-form">
+            <h2>编辑遗嘱信息</h2>
+            <div class="form-group">
+                <label for="edit-contact-name">紧急联系人姓名</label>
+                <input type="text" id="edit-contact-name" placeholder="请输入联系人姓名">
+            </div>
+            <div class="form-group">
+                <label for="edit-contact-phone">紧急联系人电话</label>
+                <input type="tel" id="edit-contact-phone" placeholder="请输入联系人电话">
+            </div>
+            <div class="form-group">
+                <label for="edit-check-interval">失联检查周期</label>
+                <select id="edit-check-interval">
+                    <option value="7">每周签到一次</option>
+                    <option value="14">每两周签到一次</option>
+                    <option value="30">每月签到一次</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="edit-file-location">重要文件存放位置</label>
+                <textarea id="edit-file-location" placeholder="例如：房产证在主卧衣柜第二个抽屉..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>想告别的话</label>
+                <div class="voice-text-option">
+                    <div class="radio-item">
+                        <input type="radio" name="edit-last-words-type" id="edit-type-text" value="text">
+                        <label for="edit-type-text">文本输入</label>
+                    </div>
+                    <div class="radio-item">
+                        <input type="radio" name="edit-last-words-type" id="edit-type-voice" value="voice">
+                        <label for="edit-type-voice">语音录制（1分钟）</label>
+                    </div>
+                </div>
+                <textarea id="edit-last-words-text" placeholder="想对家人/朋友说的最后一段话..." class="last-words-input"></textarea>
+                <div class="voice-recorder" id="edit-voice-recorder">
+                    <button class="btn record-btn" id="edit-record-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="6" fill="white"/>
+                        </svg>
+                        开始录制
+                    </button>
+                    <div class="timer" id="edit-record-timer">00:00</div>
+                    <div class="record-status" id="edit-record-status">点击按钮开始录制，最长1分钟</div>
+                    <div class="voice-preview" id="edit-voice-preview">
+                        <p style="font-size: 13px; color: #666; margin-bottom: 8px;">已录制完成，点击播放预览：</p>
+                        <button class="btn preview-btn" id="edit-play-btn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M5 3L19 12L5 21V3Z" fill="white"/>
+                            </svg>
+                            播放语音
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>是否愿意捐赠器官</label>
+                <div class="radio-group">
+                    <div class="radio-item">
+                        <input type="radio" name="edit-donate" id="edit-donate-yes" value="是">
+                        <label for="edit-donate-yes">是</label>
+                    </div>
+                    <div class="radio-item">
+                        <input type="radio" name="edit-donate" id="edit-donate-no" value="否">
+                        <label for="edit-donate-no">否</label>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="edit-other-notes">其他特殊嘱托</label>
+                <textarea id="edit-other-notes" placeholder="例如：葬礼希望简办，骨灰撒入大海..."></textarea>
+            </div>
+            <div class="edit-btns">
+                <button class="btn btn-secondary" id="cancel-edit">取消</button>
+                <button class="btn" id="save-edit">保存修改</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPassword = '';
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recordTimerInterval = null;
+        let recordSeconds = 0;
+        const MAX_RECORD_SECONDS = 60; // 1分钟录制限制
+
+        // 初始化语音/文本切换
+        function initVoiceTextSwitch() {
+            // 新增页面切换
+            document.querySelectorAll('input[name="last-words-type"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const isVoice = this.value === 'voice';
+                    document.getElementById('last-words-text').style.display = isVoice ? 'none' : 'block';
+                    document.getElementById('voice-recorder').classList.toggle('active', isVoice);
+                });
+            });
+
+            // 编辑页面切换
+            document.querySelectorAll('input[name="edit-last-words-type"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const isVoice = this.value === 'voice';
+                    document.getElementById('edit-last-words-text').style.display = isVoice ? 'none' : 'block';
+                    document.getElementById('edit-voice-recorder').classList.toggle('active', isVoice);
+                });
+            });
+        }
+
+        // 初始化语音录制功能
+        function initVoiceRecorder(isEdit = false) {
+            const prefix = isEdit ? 'edit-' : '';
+            const recordBtn = document.getElementById(`${prefix}record-btn`);
+            const timerEl = document.getElementById(`${prefix}record-timer`);
+            const statusEl = document.getElementById(`${prefix}record-status`);
+            const previewEl = document.getElementById(`${prefix}voice-preview`);
+            const playBtn = document.getElementById(`${prefix}play-btn`);
+            let audioBlob = null;
+
+            recordBtn.addEventListener('click', async function() {
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    // 停止录制
+                    mediaRecorder.stop();
+                    recordBtn.innerHTML = `
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="6" fill="white"/>
+                        </svg>
+                        重新录制
+                    `;
+                    recordBtn.classList.remove('recording');
+                    clearInterval(recordTimerInterval);
+                    statusEl.textContent = '录制完成，可点击播放预览';
+                    previewEl.classList.add('active');
+                    return;
+                }
+
+                // 开始录制
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+                    recordSeconds = 0;
+                    timerEl.textContent = '00:00';
+                    statusEl.textContent = '正在录制...最长1分钟';
+                    previewEl.classList.remove('active');
+
+                    mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+                    mediaRecorder.onstop = () => {
+                        audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        // 停止所有音轨
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+
+                    mediaRecorder.start();
+                    recordBtn.innerHTML = `
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="6" y="4" width="4" height="16" fill="white"/>
+                            <rect x="14" y="4" width="4" height="16" fill="white"/>
+                        </svg>
+                        停止录制
+                    `;
+                    recordBtn.classList.add('recording');
+
+                    // 启动计时器
+                    recordTimerInterval = setInterval(() => {
+                        recordSeconds++;
+                        const minutes = Math.floor(recordSeconds / 60).toString().padStart(2, '0');
+                        const seconds = (recordSeconds % 60).toString().padStart(2, '0');
+                        timerEl.textContent = `${minutes}:${seconds}`;
+
+                        // 达到1分钟自动停止
+                        if (recordSeconds >= MAX_RECORD_SECONDS) {
+                            mediaRecorder.stop();
+                            recordBtn.innerHTML = `
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="12" cy="12" r="6" fill="white"/>
+                                </svg>
+                                重新录制
+                            `;
+                            recordBtn.classList.remove('recording');
+                            clearInterval(recordTimerInterval);
+                            statusEl.textContent = '录制已达1分钟上限';
+                            previewEl.classList.add('active');
+                        }
+                    }, 1000);
+                } catch (e) {
+                    console.error('录制失败：', e);
+                    statusEl.textContent = '录制失败，请允许麦克风权限后重试';
+                }
+            });
+
+            // 播放预览
+            playBtn.addEventListener('click', function() {
+                if (!audioBlob) return;
+                const audioUrl = URL.createObjectURL(audioBlob);
+                const audio = new Audio(audioUrl);
+                audio.play();
+
+                // 播放状态提示
+                const originalText = playBtn.innerHTML;
+                playBtn.innerHTML = `
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="6" y="4" width="4" height="16" fill="white"/>
+                        <rect x="14" y="4" width="4" height="16" fill="white"/>
+                    </svg>
+                    播放中...
+                `;
+                playBtn.disabled = true;
+
+                audio.onended = () => {
+                    playBtn.innerHTML = originalText;
+                    playBtn.disabled = false;
+                    URL.revokeObjectURL(audioUrl);
+                };
+            });
+
+            // 暴露音频Blob获取方法（用于保存）
+            return {
+                getAudioBlob: () => audioBlob,
+                setAudioBlob: (blob) => { audioBlob = blob; }
+            };
+        }
+
+        // 格式化时间（补零）
+        function formatTime(num) {
+            return num.toString().padStart(2, '0');
+        }
+
+        // 初始化动态倒计时
+        function initDynamicCountdown() {
+            function updateCountdown() {
+                const encrypted = localStorage.getItem('digitalWill');
+                if (!encrypted) return;
+
+                try {
+                    const tempStr = base64ToUtf8(encrypted).split('|')[0];
+                    const tempData = JSON.parse(tempStr);
+                    const deadline = new Date(tempData.checkin.nextDeadline);
+                    const now = new Date();
+                    const diff = deadline - now;
+
+                    const countdownEl = document.getElementById('dynamic-countdown');
+                    const daysEl = countdownEl.querySelector('.days');
+                    const hoursEl = countdownEl.querySelector('.hours');
+                    const minutesEl = countdownEl.querySelector('.minutes');
+                    const secondsEl = countdownEl.querySelector('.seconds');
+
+                    if (diff <= 0) {
+                        // 已过期
+                        daysEl.textContent = '00';
+                        hoursEl.textContent = '00';
+                        minutesEl.textContent = '00';
+                        secondsEl.textContent = '00';
+                        countdownEl.classList.add('expired');
+                        return;
+                    }
+
+                    // 计算天时分秒
+                    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+                    // 更新显示
+                    daysEl.textContent = formatTime(days);
+                    hoursEl.textContent = formatTime(hours);
+                    minutesEl.textContent = formatTime(minutes);
+                    secondsEl.textContent = formatTime(seconds);
+                    countdownEl.classList.remove('expired');
+                } catch (e) {
+                    console.error('倒计时更新失败：', e);
+                }
+            }
+
+            // 初始更新一次，之后每秒更新
+            updateCountdown();
+            setInterval(updateCountdown, 1000);
+        }
+
+        function hideAllErrors() {
+            document.querySelectorAll('.error-tip').forEach(el => {
+                el.classList.remove('show');
+            });
+        }
+
+        function utf8ToBase64(str) {
+            return btoa(unescape(encodeURIComponent(str)));
+        }
+
+        function base64ToUtf8(str) {
+            return decodeURIComponent(escape(atob(str)));
+        }
+
+        // 处理Blob数据的Base64转换（用于存储）
+        function blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        function base64ToBlob(base64, mimeType = 'audio/webm') {
+            const byteCharacters = atob(base64);
+            const byteArrays = [];
+            for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+                const slice = byteCharacters.slice(offset, offset + 512);
+                const byteNumbers = new Array(slice.length);
+                for (let i = 0; i < slice.length; i++) {
+                    byteNumbers[i] = slice.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                byteArrays.push(byteArray);
+            }
+            return new Blob(byteArrays, { type: mimeType });
+        }
+
+        function encryptData(data, password) {
+            const dataStr = JSON.stringify(data);
+            const combined = dataStr + '|' + password;
+            return utf8ToBase64(combined);
+        }
+
+        function decryptData(encrypted, password) {
+            try {
+                const decrypted = base64ToUtf8(encrypted);
+                const [dataStr, pwd] = decrypted.split('|');
+                if (pwd !== password) return null;
+                return JSON.parse(dataStr);
+            } catch (e) {
+                console.error('解密失败：', e);
+                return null;
+            }
+        }
+
+        let currentStep = 1;
+        function goToStep(step) {
+            hideAllErrors();
+            document.getElementById(`step${currentStep}`).classList.remove('active');
+            document.getElementById(`step${step}`).classList.add('active');
+            currentStep = step;
+        }
+
+        // 初始化语音录制实例
+        let mainVoiceRecorder, editVoiceRecorder;
+        async function saveData() {
+            const password = document.getElementById('password').value;
+            const passwordConfirm = document.getElementById('password-confirm').value;
+            
+            let hasError = false;
+            if (password.length < 6) {
+                document.getElementById('pwd-length-error').classList.add('show');
+                hasError = true;
+            }
+            if (password !== passwordConfirm) {
+                document.getElementById('pwd-confirm-error').classList.add('show');
+                hasError = true;
+            }
+            const contactName = document.getElementById('contact-name').value;
+            if (!contactName.trim()) {
+                document.getElementById('name-error').classList.add('show');
+                hasError = true;
+            }
+            const contactPhone = document.getElementById('contact-phone').value;
+            if (!contactPhone.trim()) {
+                document.getElementById('phone-error').classList.add('show');
+                hasError = true;
+            }
+            // 验证告别语（文本或语音至少一项）
+            const isTextType = document.getElementById('type-text').checked;
+            const textContent = document.getElementById('last-words-text').value.trim();
+            const audioBlob = mainVoiceRecorder.getAudioBlob();
+            if (isTextType && !textContent) {
+                alert('请输入文本形式的告别语');
+                hasError = true;
+            }
+            if (!isTextType && !audioBlob) {
+                alert('请录制语音形式的告别语');
+                hasError = true;
+            }
+            if (hasError) return;
+
+            // 处理告别语数据
+            let lastWordsData = {};
+            if (isTextType) {
+                lastWordsData = {
+                    type: 'text',
+                    content: textContent
+                };
+            } else {
+                // 语音转Base64存储
+                const audioBase64 = await blobToBase64(audioBlob);
+                lastWordsData = {
+                    type: 'voice',
+                    content: audioBase64
+                };
+            }
+
+            const formData = {
+                contact: {
+                    name: contactName,
+                    phone: contactPhone,
+                    interval: parseInt(document.getElementById('check-interval').value)
+                },
+                will: {
+                    fileLocation: document.getElementById('file-location').value,
+                    lastWords: lastWordsData, // 存储类型+内容
+                    donateOrgan: document.querySelector('input[name="donate"]:checked').value,
+                    otherNotes: document.getElementById('other-notes').value
+                },
+                checkin: {
+                    lastTime: new Date().toLocaleString(),
+                    nextDeadline: new Date(Date.now() + parseInt(document.getElementById('check-interval').value) * 24 * 60 * 60 * 1000).toLocaleString()
+                }
+            };
+
+            try {
+                const encrypted = encryptData(formData, password);
+                localStorage.setItem('digitalWill', encrypted);
+                localStorage.setItem('hasSetPassword', 'true');
+
+                document.getElementById(`step${currentStep}`).classList.remove('active');
+                document.getElementById('main').classList.add('active');
+                updateStatus();
+                alert('信息保存成功！所有数据仅存储在本地，请注意保管好密码。');
+            } catch (e) {
+                alert('保存失败：' + e.message);
+            }
+        }
+
+        function checkin() {
+            const encrypted = localStorage.getItem('digitalWill');
+            const password = prompt('请输入你的解锁密码以完成签到：');
+            if (!password) return;
+
+            const data = decryptData(encrypted, password);
+            if (!data) {
+                alert('密码错误！');
+                return;
+            }
+
+            data.checkin.lastTime = new Date().toLocaleString();
+            data.checkin.nextDeadline = new Date(Date.now() + data.contact.interval * 24 * 60 * 60 * 1000).toLocaleString();
+            
+            const newEncrypted = encryptData(data, password);
+            localStorage.setItem('digitalWill', newEncrypted);
+            
+            updateStatus();
+            alert('签到成功！');
+        }
+
+        async function openEditForm() {
+            const encrypted = localStorage.getItem('digitalWill');
+            const password = prompt('请输入你的解锁密码：');
+            if (!password) return;
+
+            const data = decryptData(encrypted, password);
+            if (!data) {
+                alert('密码错误！');
+                return;
+            }
+
+            currentPassword = password;
+            const lastWords = data.will.lastWords || { type: 'text', content: '' };
+
+            // 填充表单数据
+            document.getElementById('edit-contact-name').value = data.contact.name;
+            document.getElementById('edit-contact-phone').value = data.contact.phone;
+            document.getElementById('edit-check-interval').value = data.contact.interval;
+            document.getElementById('edit-file-location').value = data.will.fileLocation || '';
+            document.getElementById('edit-other-notes').value = data.will.otherNotes || '';
+            
+            // 填充告别语数据
+            if (lastWords.type === 'text') {
+                document.getElementById('edit-type-text').checked = true;
+                document.getElementById('edit-last-words-text').value = lastWords.content || '';
+                document.getElementById('edit-last-words-text').style.display = 'block';
+                document.getElementById('edit-voice-recorder').classList.remove('active');
+            } else {
+                document.getElementById('edit-type-voice').checked = true;
+                document.getElementById('edit-last-words-text').style.display = 'none';
+                document.getElementById('edit-voice-recorder').classList.add('active');
+                // 还原语音Blob
+                const audioBlob = base64ToBlob(lastWords.content);
+                editVoiceRecorder.setAudioBlob(audioBlob);
+                // 显示预览
+                document.getElementById('edit-voice-preview').classList.add('active');
+                document.getElementById('edit-record-status').textContent = '已加载原有录音，可重新录制';
+            }
+
+            // 填充器官捐赠选项
+            if (data.will.donateOrgan === '是') {
+                document.getElementById('edit-donate-yes').checked = true;
+            } else {
+                document.getElementById('edit-donate-no').checked = true;
+            }
+
+            document.getElementById('edit-container').style.display = 'block';
+        }
+
+        async function saveEditData() {
+            const isTextType = document.getElementById('edit-type-text').checked;
+            const textContent = document.getElementById('edit-last-words-text').value.trim();
+            const audioBlob = editVoiceRecorder.getAudioBlob();
+
+            // 验证告别语
+            if (isTextType && !textContent) {
+                alert('请输入文本形式的告别语');
+                return;
+            }
+            if (!isTextType && !audioBlob) {
+                alert('请录制语音形式的告别语');
+                return;
+            }
+
+            // 处理告别语数据
+            let lastWordsData = {};
+            if (isTextType) {
+                lastWordsData = {
+                    type: 'text',
+                    content: textContent
+                };
+            } else {
+                const audioBase64 = await blobToBase64(audioBlob);
+                lastWordsData = {
+                    type: 'voice',
+                    content: audioBase64
+                };
+            }
+
+            const updatedData = {
+                contact: {
+                    name: document.getElementById('edit-contact-name').value.trim(),
+                    phone: document.getElementById('edit-contact-phone').value.trim(),
+                    interval: parseInt(document.getElementById('edit-check-interval').value)
+                },
+                will: {
+                    fileLocation: document.getElementById('edit-file-location').value,
+                    lastWords: lastWordsData,
+                    donateOrgan: document.querySelector('input[name="edit-donate"]:checked').value,
+                    otherNotes: document.getElementById('edit-other-notes').value
+                },
+                checkin: {
+                    lastTime: document.getElementById('last-checkin').textContent,
+                    nextDeadline: new Date(Date.now() + parseInt(document.getElementById('edit-check-interval').value) * 24 * 60 * 60 * 1000).toLocaleString()
+                }
+            };
+
+            if (!updatedData.contact.name || !updatedData.contact.phone) {
+                alert('紧急联系人姓名和电话不能为空！');
+                return;
+            }
+
+            try {
+                const encrypted = encryptData(updatedData, currentPassword);
+                localStorage.setItem('digitalWill', encrypted);
+                
+                document.getElementById('edit-container').style.display = 'none';
+                updateStatus();
+                alert('信息修改并保存成功！');
+            } catch (e) {
+                alert('保存失败：' + e.message);
+            }
+        }
+
+        function resetAllData() {
+            const confirmReset = confirm('⚠️ 警告：此操作将清除所有已保存的密码和遗嘱信息，且无法恢复！是否确定重置？');
+            if (!confirmReset) return;
+
+            const password = prompt('请输入当前解锁密码以确认重置：');
+            if (!password) return;
+
+            const encrypted = localStorage.getItem('digitalWill');
+            const data = decryptData(encrypted, password);
+            if (!data) {
+                alert('密码错误！无法重置数据。');
+                return;
+            }
+
+            localStorage.removeItem('digitalWill');
+            localStorage.removeItem('hasSetPassword');
+            
+            document.getElementById('main').classList.remove('active');
+            document.getElementById('step1').classList.add('active');
+            currentStep = 1;
+            
+            // 清空所有输入框
+            document.getElementById('password').value = '';
+            document.getElementById('password-confirm').value = '';
+            document.getElementById('contact-name').value = '';
+            document.getElementById('contact-phone').value = '';
+            document.getElementById('file-location').value = '';
+            document.getElementById('last-words-text').value = '';
+            document.getElementById('other-notes').value = '';
+            document.getElementById('donate-no').checked = true;
+            document.getElementById('type-text').checked = true;
+            document.getElementById('voice-recorder').classList.remove('active');
+            document.getElementById('last-words-text').style.display = 'block';
+
+            alert('所有数据已成功清除！现在可以重新设置密码和录入信息。');
+        }
+
+        function updateStatus() {
+            const encrypted = localStorage.getItem('digitalWill');
+            if (!encrypted) return;
+
+            try {
+                const tempStr = base64ToUtf8(encrypted).split('|')[0];
+                const tempData = JSON.parse(tempStr);
+                document.getElementById('last-checkin').textContent = tempData.checkin.lastTime;
+            } catch (e) {
+                document.getElementById('last-checkin').textContent = '获取失败';
+            }
+        }
+
+        window.onload = function() {
+            // 初始化核心功能
+            initVoiceTextSwitch();
+            mainVoiceRecorder = initVoiceRecorder(false);
+            editVoiceRecorder = initVoiceRecorder(true);
+            initDynamicCountdown();
+
+            // 步骤切换事件
+            document.getElementById('step1-next').addEventListener('click', function() {
+                hideAllErrors();
+                const pwd = document.getElementById('password').value;
+                if (pwd.length < 6) {
+                    document.getElementById('pwd-length-error').classList.add('show');
+                    return;
+                }
+                const pwdConfirm = document.getElementById('password-confirm').value;
+                if (pwd !== pwdConfirm) {
+                    document.getElementById('pwd-confirm-error').classList.add('show');
+                    return;
+                }
+                goToStep(2);
+            });
+
+            document.getElementById('step2-prev').addEventListener('click', () => goToStep(1));
+            document.getElementById('step2-next').addEventListener('click', function() {
+                hideAllErrors();
+                const name = document.getElementById('contact-name').value;
+                if (!name.trim()) {
+                    document.getElementById('name-error').classList.add('show');
+                    return;
+                }
+                const phone = document.getElementById('contact-phone').value;
+                if (!phone.trim()) {
+                    document.getElementById('phone-error').classList.add('show');
+                    return;
+                }
+                goToStep(3);
+            });
+
+            document.getElementById('step3-prev').addEventListener('click', () => goToStep(2));
+            document.getElementById('save-btn').addEventListener('click', saveData);
+
+            // 主界面事件
+            document.getElementById('checkin-btn').addEventListener('click', checkin);
+            document.getElementById('edit-btn').addEventListener('click', openEditForm);
+            document.getElementById('reset-btn').addEventListener('click', resetAllData);
+
+            // 编辑弹窗事件
+            document.getElementById('cancel-edit').addEventListener('click', function() {
+                document.getElementById('edit-container').style.display = 'none';
+            });
+            document.getElementById('save-edit').addEventListener('click', saveEditData);
+
+            // 页面初始化状态
+            const hasSet = localStorage.getItem('hasSetPassword');
+            if (hasSet === 'true') {
+                document.getElementById('step1').classList.remove('active');
+                document.getElementById('main').classList.add('active');
+                updateStatus();
+            }
+        };
+    </script>
+</body>
+</html>
