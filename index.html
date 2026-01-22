@@ -120,14 +120,33 @@
             font-size: 14px;
             color: #666;
         }
+        /* 错误提示样式 - 优化高亮效果 */
         .error-tip {
-            color: #f5f5f5;
+            color: #f56c6c;          /* 保留醒目红色，可改为 #e64949 更鲜艳 */
             font-size: 12px;
             margin-top: 4px;
             display: none;
+            font-weight: bold;       /* 新增：字体加粗 */
+            padding: 4px 8px;        /* 新增：内边距，增加点击区域 */
+            background-color: #fff2f2; /* 新增：浅红背景，强化高亮 */
+            border-radius: 4px;      /* 新增：圆角，和整体风格统一 */
+            border-left: 3px solid #f56c6c; /* 新增：左侧红条，视觉聚焦 */
+            transition: all 0.2s ease; /* 新增：过渡动画，显示/隐藏更顺滑 */
         }
+
+        /* 显示错误提示时的高亮状态 */
         .error-tip.show {
             display: block;
+            animation: shake 0.3s ease; /* 新增：轻微抖动动画，吸引注意力 */
+        }
+
+        /* 新增：抖动动画关键帧 */
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-2px); }
+            50% { transform: translateX(2px); }
+            75% { transform: translateX(-2px); }
+            100% { transform: translateX(0); }
         }
         #edit-container {
             display: none;
@@ -166,12 +185,14 @@
         <div class="form-group">
             <label for="password">设置6位以上密码（仅保存在本地）</label>
             <input type="password" id="password" placeholder="请输入密码">
-            <div class="error-tip" id="pwd-error">密码长度不能少于6位</div>
+            <!-- 修复：密码长度错误提示ID -->
+            <div class="error-tip" id="pwd-length-error">密码长度不能少于6位</div>
         </div>
         <div class="form-group">
             <label for="password-confirm">确认密码</label>
             <input type="password" id="password-confirm" placeholder="请再次输入密码">
-            <div class="error-tip" id="pwd-error">两次输入的密码不一致</div>
+            <!-- 修复：密码不一致错误提示ID -->
+            <div class="error-tip" id="pwd-confirm-error">两次输入的密码不一致</div>
         </div>
         <button class="btn" id="step1-next">下一步</button>
     </div>
@@ -346,8 +367,9 @@
             const passwordConfirm = document.getElementById('password-confirm').value;
             
             let hasError = false;
+            // 修复：密码长度错误提示ID
             if (password.length < 6) {
-                document.getElementById('pwd-error').classList.add('show');
+                document.getElementById('pwd-length-error').classList.add('show');
                 hasError = true;
             }
             if (password !== passwordConfirm) {
@@ -545,8 +567,9 @@
             document.getElementById('step1-next').addEventListener('click', function() {
                 hideAllErrors();
                 const pwd = document.getElementById('password').value;
+                // 修复：密码长度错误提示ID
                 if (pwd.length < 6) {
-                    document.getElementById('pwd-error').classList.add('show');
+                    document.getElementById('pwd-length-error').classList.add('show');
                     return;
                 }
                 const pwdConfirm = document.getElementById('password-confirm').value;
