@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <title>极简数字遗嘱箱</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+        body {
+            background-color: #f5f5f5;
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: none;
+        }
+        .container.active {
+            display: block;
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-size: 14px;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border 0.2s;
+            -webkit-appearance: none;
+        }
+        input:focus, textarea:focus, select:focus {
+            border-color: #409eff;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .btn {
+            background-color: #409eff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 16px;
+            transition: background 0.2s;
+            -webkit-appearance: none;
+            touch-action: manipulation;
+        }
+        .btn:hover {
+            background-color: #337ecc;
+        }
+        .btn-secondary {
+            background-color: #909399;
+        }
+        .btn-secondary:hover {
+            background-color: #73767a;
+        }
+        .radio-group {
+            display: flex;
+            gap: 16px;
+            margin-top: 8px;
+        }
+        .radio-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        /* 修复单选框样式，确保iOS可点击 */
+        input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            border: 1px solid #ddd;
+            border-radius: 50%;
+            -webkit-appearance: radio;
+            appearance: radio;
+        }
+        .status-box {
+            background-color: #e8f4fd;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            color: #666;
+        }
+        .error-tip {
+            color: #f56c6c;
+            font-size: 12px;
+            margin-top: 4px;
+            display: none;
+        }
+        .error-tip.show {
+            display: block;
+        }
+        /* 编辑页面样式 */
+        #edit-container {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 999;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        #edit-form {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            margin: 20px auto;
+        }
+        .edit-btns {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .edit-btns .btn {
+            flex: 1;
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- 步骤1：设置密码 -->
+    <div class="container active" id="step1">
+        <h2>设置解锁密码</h2>
+        <div class="form-group">
+            <label for="password">设置6位以上密码（仅保存在本地）</label>
+            <input type="password" id="password" placeholder="请输入密码">
+            <div class="error-tip" id="pwd-error">密码长度不能少于6位</div>
+        </div>
+        <div class="form-group">
+            <label for="password-confirm">确认密码</label>
+            <input type="password" id="password-confirm" placeholder="请再次输入密码">
+            <div class="error-tip" id="pwd-confirm-error">两次输入的密码不一致</div>
+        </div>
+        <button class="btn" id="step1-next">下一步</button>
+    </div>
+
+    <!-- 步骤2：紧急联系人 -->
+    <div class="container" id="step2">
+        <h2>紧急联系人信息</h2>
+        <div class="form-group">
+            <label for="contact-name">联系人姓名</label>
+            <input type="text" id="contact-name" placeholder="请输入联系人姓名">
+            <div class="error-tip" id="name-error">请输入联系人姓名</div>
+        </div>
+        <div class="form-group">
+            <label for="contact-phone">联系人电话</label>
+            <input type="tel" id="contact-phone" placeholder="请输入联系人电话">
+            <div class="error-tip" id="phone-error">请输入联系人电话</div>
+        </div>
+        <div class="form-group">
+            <label for="check-interval">失联检查周期</label>
+            <select id="check-interval">
+                <option value="7">每周签到一次</option>
+                <option value="14">每两周签到一次</option>
+                <option value="30">每月签到一次</option>
+            </select>
+        </div>
+        <button class="btn btn-secondary" id="step2-prev">上一步</button>
+        <button class="btn" id="step2-next">下一步</button>
+    </div>
+
+    <!-- 步骤3：核心遗嘱信息 -->
+    <div class="container" id="step3">
+        <h2>核心嘱托信息</h2>
+        <div class="form-group">
+            <label for="file-location">重要文件存放位置</label>
+            <textarea id="file-location" placeholder="例如：房产证在主卧衣柜第二个抽屉，银行卡密码存在手机备忘录加密文件夹..."></textarea>
+        </div>
+        <div class="form-group">
+            <label for="last-words">想告别的话</label>
+            <textarea id="last-words" placeholder="想对家人/朋友说的最后一段话..."></textarea>
+        </div>
+        <div class="form-group">
+            <label>是否愿意捐赠器官</label>
+            <div class="radio-group">
+                <div class="radio-item">
+                    <input type="radio" name="donate" id="donate-yes" value="是">
+                    <label for="donate-yes">是</label>
+                </div>
+                <div class="radio-item">
+                    <input type="radio" name="donate" id="donate-no" value="否" checked>
+                    <label for="donate-no">否</label>
+                </div>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="other-notes">其他特殊嘱托</label>
+            <textarea id="other-notes" placeholder="例如：葬礼希望简办，骨灰撒入大海..."></textarea>
+        </div>
+        <button class="btn btn-secondary" id="step3-prev">上一步</button>
+        <button class="btn" id="save-btn">保存并完成</button>
+    </div>
+
+    <!-- 主界面：签到+查看 -->
+    <div class="container" id="main">
+        <h2>极简数字遗嘱箱</h2>
+        <div class="status-box" id="status">
+            上次签到时间：<span id="last-checkin">未签到</span><br>
+            距离下次签到截止：<span id="countdown">--</span>
+        </div>
+        <button class="btn" id="checkin-btn">今日签到</button>
+        <button class="btn btn-secondary" style="margin-top: 8px;" id="edit-btn">编辑/查看遗嘱信息</button>
+    </div>
+
+    <!-- 编辑弹窗 -->
+    <div id="edit-container">
+        <div id="edit-form">
+            <h2>编辑遗嘱信息</h2>
+            <div class="form-group">
+                <label for="edit-contact-name">紧急联系人姓名</label>
+                <input type="text" id="edit-contact-name" placeholder="请输入联系人姓名">
+            </div>
+            <div class="form-group">
+                <label for="edit-contact-phone">紧急联系人电话</label>
+                <input type="tel" id="edit-contact-phone" placeholder="请输入联系人电话">
+            </div>
+            <div class="form-group">
+                <label for="edit-check-interval">失联检查周期</label>
+                <select id="edit-check-interval">
+                    <option value="7">每周签到一次</option>
+                    <option value="14">每两周签到一次</option>
+                    <option value="30">每月签到一次</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="edit-file-location">重要文件存放位置</label>
+                <textarea id="edit-file-location" placeholder="例如：房产证在主卧衣柜第二个抽屉..."></textarea>
+            </div>
+            <div class="form-group">
+                <label for="edit-last-words">想告别的话</label>
+                <textarea id="edit-last-words" placeholder="想对家人/朋友说的最后一段话..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>是否愿意捐赠器官</label>
+                <div class="radio-group">
+                    <div class="radio-item">
+                        <input type="radio" name="edit-donate" id="edit-donate-yes" value="是">
+                        <label for="edit-donate-yes">是</label>
+                    </div>
+                    <div class="radio-item">
+                        <input type="radio" name="edit-donate" id="edit-donate-no" value="否">
+                        <label for="edit-donate-no">否</label>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="edit-other-notes">其他特殊嘱托</label>
+                <textarea id="edit-other-notes" placeholder="例如：葬礼希望简办，骨灰撒入大海..."></textarea>
+            </div>
+            <div class="edit-btns">
+                <button class="btn btn-secondary" id="cancel-edit">取消</button>
+                <button class="btn" id="save-edit">保存修改</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量：存储当前解锁密码
+        let currentPassword = '';
+
+        // 隐藏所有错误提示
+        function hideAllErrors() {
+            document.querySelectorAll('.error-tip').forEach(el => {
+                el.classList.remove('show');
+            });
+        }
+
+        // 支持中文的加密/解密函数
+        function utf8ToBase64(str) {
+            return btoa(unescape(encodeURIComponent(str)));
+        }
+
+        function base64ToUtf8(str) {
+            return decodeURIComponent(escape(atob(str)));
+        }
+
+        // 加密核心函数
+        function encryptData(data, password) {
+            const dataStr = JSON.stringify(data);
+            const combined = dataStr + '|' + password;
+            return utf8ToBase64(combined);
+        }
+
+        function decryptData(encrypted, password) {
+            try {
+                const decrypted = base64ToUtf8(encrypted);
+                const [dataStr, pwd] = decrypted.split('|');
+                if (pwd !== password) return null;
+                return JSON.parse(dataStr);
+            } catch (e) {
+                console.error('解密失败：', e);
+                return null;
+            }
+        }
+
+        // 步骤切换
+        let currentStep = 1;
+        function goToStep(step) {
+            hideAllErrors();
+            document.getElementById(`step${currentStep}`).classList.remove('active');
+            document.getElementById(`step${step}`).classList.add('active');
+            currentStep = step;
+        }
+
+        // 初始保存数据
+        function saveData() {
+            const password = document.getElementById('password').value;
+            const passwordConfirm = document.getElementById('password-confirm').value;
+            
+            // 手动验证
+            let hasError = false;
+            if (password.length < 6) {
+                document.getElementById('pwd-error').classList.add('show');
+                hasError = true;
+            }
+            if (password !== passwordConfirm) {
+                document.getElementById('pwd-confirm-error').classList.add('show');
+                hasError = true;
+            }
+            const contactName = document.getElementById('contact-name').value;
+            if (!contactName.trim()) {
+                document.getElementById('name-error').classList.add('show');
+                hasError = true;
+            }
+            const contactPhone = document.getElementById('contact-phone').value;
+            if (!contactPhone.trim()) {
+                document.getElementById('phone-error').classList.add('show');
+                hasError = true;
+            }
+            if (hasError) return;
+
+            // 收集表单数据
+            const formData = {
+                contact: {
+                    name: contactName,
+                    phone: contactPhone,
+                    interval: parseInt(document.getElementById('check-interval').value)
+                },
+                will: {
+                    fileLocation: document.getElementById('file-location').value,
+                    lastWords: document.getElementById('last-words').value,
+                    donateOrgan: document.querySelector('input[name="donate"]:checked').value,
+                    otherNotes: document.getElementById('other-notes').value
+                },
+                checkin: {
+                    lastTime: new Date().toLocaleString(),
+                    nextDeadline: new Date(Date.now() + parseInt(document.getElementById('check-interval').value) * 24 * 60 * 60 * 1000).toLocaleString()
+                }
+            };
+
+            // 加密并保存
+            try {
+                const encrypted = encryptData(formData, password);
+                localStorage.setItem('digitalWill', encrypted);
+                localStorage.setItem('hasSetPassword', 'true');
+
+                // 跳转到主界面
+                document.getElementById(`step${currentStep}`).classList.remove('active');
+                document.getElementById('main').classList.add('active');
+                updateStatus();
+                alert('信息保存成功！所有数据仅存储在本地，请注意保管好密码。');
+            } catch (e) {
+                alert('保存失败：' + e.message);
+            }
+        }
+
+        // 签到功能
+        function checkin() {
+            const encrypted = localStorage.getItem('digitalWill');
+            const password = prompt('请输入你的解锁密码以完成签到：');
+            if (!password) return;
+
+            const data = decryptData(encrypted, password);
+            if (!data) {
+                alert('密码错误！');
+                return;
+            }
+
+            // 更新签到时间
+            data.checkin.lastTime = new Date().toLocaleString();
+            data.checkin.nextDeadline = new Date(Date.now() + data.contact.interval * 24 * 60 * 60 * 1000).toLocaleString();
+            
+            // 重新加密保存
+            const newEncrypted = encryptData(data, password);
+            localStorage.setItem('digitalWill', newEncrypted);
+            
+            updateStatus();
+            alert('签到成功！');
+        }
+
+        // 打开编辑界面
+        function openEditForm() {
+            const encrypted = localStorage.getItem('digitalWill');
+            const password = prompt('请输入你的解锁密码：');
+            if (!password) return;
+
+            const data = decryptData(encrypted, password);
+            if (!data) {
+                alert('密码错误！');
+                return;
+            }
+
+            // 保存当前密码（用于后续保存修改）
+            currentPassword = password;
+
+            // 填充编辑表单
+            document.getElementById('edit-contact-name').value = data.contact.name;
+            document.getElementById('edit-contact-phone').value = data.contact.phone;
+            document.getElementById('edit-check-interval').value = data.contact.interval;
+            document.getElementById('edit-file-location').value = data.will.fileLocation;
+            document.getElementById('edit-last-words').value = data.will.lastWords;
+            document.getElementById('edit-other-notes').value = data.will.otherNotes;
+            
+            // 修复单选框选中状态
+            if (data.will.donateOrgan === '是') {
+                document.getElementById('edit-donate-yes').checked = true;
+            } else {
+                document.getElementById('edit-donate-no').checked = true;
+            }
+
+            // 显示编辑弹窗
+            document.getElementById('edit-container').style.display = 'block';
+        }
+
+        // 保存编辑后的信息
+        function saveEditData() {
+            // 收集编辑后的数据
+            const updatedData = {
+                contact: {
+                    name: document.getElementById('edit-contact-name').value.trim(),
+                    phone: document.getElementById('edit-contact-phone').value.trim(),
+                    interval: parseInt(document.getElementById('edit-check-interval').value)
+                },
+                will: {
+                    fileLocation: document.getElementById('edit-file-location').value,
+                    lastWords: document.getElementById('edit-last-words').value,
+                    donateOrgan: document.querySelector('input[name="edit-donate"]:checked').value,
+                    otherNotes: document.getElementById('edit-other-notes').value
+                },
+                checkin: {
+                    // 保留原签到信息
+                    lastTime: document.getElementById('last-checkin').textContent,
+                    nextDeadline: new Date(Date.now() + parseInt(document.getElementById('edit-check-interval').value) * 24 * 60 * 60 * 1000).toLocaleString()
+                }
+            };
+
+            // 验证必填项
+            if (!updatedData.contact.name || !updatedData.contact.phone) {
+                alert('紧急联系人姓名和电话不能为空！');
+                return;
+            }
+
+            // 加密并保存
+            try {
+                const encrypted = encryptData(updatedData, currentPassword);
+                localStorage.setItem('digitalWill', encrypted);
+                
+                // 关闭编辑弹窗，更新状态
+                document.getElementById('edit-container').style.display = 'none';
+                updateStatus();
+                alert('信息修改并保存成功！');
+            } catch (e) {
+                alert('保存失败：' + e.message);
+            }
+        }
+
+        // 更新状态显示
+        function updateStatus() {
+            const encrypted = localStorage.getItem('digitalWill');
+            if (!encrypted) return;
+
+            try {
+                const tempStr = base64ToUtf8(encrypted).split('|')[0];
+                const tempData = JSON.parse(tempStr);
+                document.getElementById('last-checkin').textContent = tempData.checkin.lastTime;
+                
+                const deadline = new Date(tempData.checkin.nextDeadline);
+                const now = new Date();
+                const diffDays = Math.ceil((deadline - now) / (1000 * 60 * 60 * 24));
+                document.getElementById('countdown').textContent = `${diffDays} 天`;
+            } catch (e) {
+                document.getElementById('countdown').textContent = '计算失败';
+            }
+        }
+
+        // 页面加载时绑定事件
+        window.onload = function() {
+            // 步骤1下一步
+            document.getElementById('step1-next').addEventListener('click', function() {
+                hideAllErrors();
+                const pwd = document.getElementById('password').value;
+                if (pwd.length < 6) {
+                    document.getElementById('pwd-error').classList.add('show');
+                    return;
+                }
+                const pwdConfirm = document.getElementById('password-confirm').value;
+                if (pwd !== pwdConfirm) {
+                    document.getElementById('pwd-confirm-error').classList.add('show');
+                    return;
+                }
+                goToStep(2);
+            });
+
+            // 步骤2上一步/下一步
+            document.getElementById('step2-prev').addEventListener('click', () => goToStep(1));
+            document.getElementById('step2-next').addEventListener('click', function() {
+                hideAllErrors();
+                const name = document.getElementById('contact-name').value;
+                if (!name.trim()) {
+                    document.getElementById('name-error').classList.add('show');
+                    return;
+                }
+                const phone = document.getElementById('contact-phone').value;
+                if (!phone.trim()) {
+                    document.getElementById('phone-error').classList.add('show');
+                    return;
+                }
+                goToStep(3);
+            });
+
+            // 步骤3上一步/保存
+            document.getElementById('step3-prev').addEventListener('click', () => goToStep(2));
+            document.getElementById('save-btn').addEventListener('click', saveData);
+
+            // 签到/编辑按钮
+            document.getElementById('checkin-btn').addEventListener('click', checkin);
+            document.getElementById('edit-btn').addEventListener('click', openEditForm);
+
+            // 编辑弹窗事件
+            document.getElementById('cancel-edit').addEventListener('click', function() {
+                document.getElementById('edit-container').style.display = 'none';
+            });
+            document.getElementById('save-edit').addEventListener('click', saveEditData);
+
+            // 判断是否已设置密码
+            const hasSet = localStorage.getItem('hasSetPassword');
+            if (hasSet === 'true') {
+                document.getElementById('step1').classList.remove('active');
+                document.getElementById('main').classList.add('active');
+                updateStatus();
+            }
+        };
+    </script>
+</body>
+</html>
