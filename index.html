@@ -87,6 +87,13 @@
         .btn-secondary:hover {
             background-color: #73767a;
         }
+        /* 重置按钮样式（红色警示） */
+        .btn-reset {
+            background-color: #f56c6c;
+        }
+        .btn-reset:hover {
+            background-color: #e64949;
+        }
         .radio-group {
             display: flex;
             gap: 16px;
@@ -97,7 +104,6 @@
             align-items: center;
             gap: 8px;
         }
-        /* 修复单选框样式，确保iOS可点击 */
         input[type="radio"] {
             width: 18px;
             height: 18px;
@@ -115,7 +121,7 @@
             color: #666;
         }
         .error-tip {
-            color: #f56c6c;
+            color: #f5f5f5;
             font-size: 12px;
             margin-top: 4px;
             display: none;
@@ -123,7 +129,6 @@
         .error-tip.show {
             display: block;
         }
-        /* 编辑页面样式 */
         #edit-container {
             display: none;
             position: fixed;
@@ -228,7 +233,7 @@
         <button class="btn" id="save-btn">保存并完成</button>
     </div>
 
-    <!-- 主界面：签到+查看 -->
+    <!-- 主界面：签到+查看+重置 -->
     <div class="container" id="main">
         <h2>极简数字遗嘱箱</h2>
         <div class="status-box" id="status">
@@ -237,6 +242,8 @@
         </div>
         <button class="btn" id="checkin-btn">今日签到</button>
         <button class="btn btn-secondary" style="margin-top: 8px;" id="edit-btn">编辑/查看遗嘱信息</button>
+        <!-- 新增重置按钮 -->
+        <button class="btn btn-reset" style="margin-top: 8px;" id="reset-btn">重置所有数据</button>
     </div>
 
     <!-- 编辑弹窗 -->
@@ -292,17 +299,14 @@
     </div>
 
     <script>
-        // 全局变量：存储当前解锁密码
         let currentPassword = '';
 
-        // 隐藏所有错误提示
         function hideAllErrors() {
             document.querySelectorAll('.error-tip').forEach(el => {
                 el.classList.remove('show');
             });
         }
 
-        // 支持中文的加密/解密函数
         function utf8ToBase64(str) {
             return btoa(unescape(encodeURIComponent(str)));
         }
@@ -311,7 +315,6 @@
             return decodeURIComponent(escape(atob(str)));
         }
 
-        // 加密核心函数
         function encryptData(data, password) {
             const dataStr = JSON.stringify(data);
             const combined = dataStr + '|' + password;
@@ -330,7 +333,6 @@
             }
         }
 
-        // 步骤切换
         let currentStep = 1;
         function goToStep(step) {
             hideAllErrors();
@@ -339,12 +341,10 @@
             currentStep = step;
         }
 
-        // 初始保存数据
         function saveData() {
             const password = document.getElementById('password').value;
             const passwordConfirm = document.getElementById('password-confirm').value;
             
-            // 手动验证
             let hasError = false;
             if (password.length < 6) {
                 document.getElementById('pwd-error').classList.add('show');
@@ -366,7 +366,6 @@
             }
             if (hasError) return;
 
-            // 收集表单数据
             const formData = {
                 contact: {
                     name: contactName,
@@ -385,13 +384,11 @@
                 }
             };
 
-            // 加密并保存
             try {
                 const encrypted = encryptData(formData, password);
                 localStorage.setItem('digitalWill', encrypted);
                 localStorage.setItem('hasSetPassword', 'true');
 
-                // 跳转到主界面
                 document.getElementById(`step${currentStep}`).classList.remove('active');
                 document.getElementById('main').classList.add('active');
                 updateStatus();
@@ -401,7 +398,6 @@
             }
         }
 
-        // 签到功能
         function checkin() {
             const encrypted = localStorage.getItem('digitalWill');
             const password = prompt('请输入你的解锁密码以完成签到：');
@@ -413,11 +409,9 @@
                 return;
             }
 
-            // 更新签到时间
             data.checkin.lastTime = new Date().toLocaleString();
             data.checkin.nextDeadline = new Date(Date.now() + data.contact.interval * 24 * 60 * 60 * 1000).toLocaleString();
             
-            // 重新加密保存
             const newEncrypted = encryptData(data, password);
             localStorage.setItem('digitalWill', newEncrypted);
             
@@ -425,7 +419,6 @@
             alert('签到成功！');
         }
 
-        // 打开编辑界面
         function openEditForm() {
             const encrypted = localStorage.getItem('digitalWill');
             const password = prompt('请输入你的解锁密码：');
@@ -437,10 +430,8 @@
                 return;
             }
 
-            // 保存当前密码（用于后续保存修改）
             currentPassword = password;
 
-            // 填充编辑表单
             document.getElementById('edit-contact-name').value = data.contact.name;
             document.getElementById('edit-contact-phone').value = data.contact.phone;
             document.getElementById('edit-check-interval').value = data.contact.interval;
@@ -448,20 +439,16 @@
             document.getElementById('edit-last-words').value = data.will.lastWords;
             document.getElementById('edit-other-notes').value = data.will.otherNotes;
             
-            // 修复单选框选中状态
             if (data.will.donateOrgan === '是') {
                 document.getElementById('edit-donate-yes').checked = true;
             } else {
                 document.getElementById('edit-donate-no').checked = true;
             }
 
-            // 显示编辑弹窗
             document.getElementById('edit-container').style.display = 'block';
         }
 
-        // 保存编辑后的信息
         function saveEditData() {
-            // 收集编辑后的数据
             const updatedData = {
                 contact: {
                     name: document.getElementById('edit-contact-name').value.trim(),
@@ -475,24 +462,20 @@
                     otherNotes: document.getElementById('edit-other-notes').value
                 },
                 checkin: {
-                    // 保留原签到信息
                     lastTime: document.getElementById('last-checkin').textContent,
                     nextDeadline: new Date(Date.now() + parseInt(document.getElementById('edit-check-interval').value) * 24 * 60 * 60 * 1000).toLocaleString()
                 }
             };
 
-            // 验证必填项
             if (!updatedData.contact.name || !updatedData.contact.phone) {
                 alert('紧急联系人姓名和电话不能为空！');
                 return;
             }
 
-            // 加密并保存
             try {
                 const encrypted = encryptData(updatedData, currentPassword);
                 localStorage.setItem('digitalWill', encrypted);
                 
-                // 关闭编辑弹窗，更新状态
                 document.getElementById('edit-container').style.display = 'none';
                 updateStatus();
                 alert('信息修改并保存成功！');
@@ -501,7 +484,45 @@
             }
         }
 
-        // 更新状态显示
+        // 新增：重置所有数据函数
+        function resetAllData() {
+            // 二次确认，防止误操作
+            const confirmReset = confirm('⚠️ 警告：此操作将清除所有已保存的密码和遗嘱信息，且无法恢复！是否确定重置？');
+            if (!confirmReset) return;
+
+            // 验证密码后重置
+            const password = prompt('请输入当前解锁密码以确认重置：');
+            if (!password) return;
+
+            const encrypted = localStorage.getItem('digitalWill');
+            const data = decryptData(encrypted, password);
+            if (!data) {
+                alert('密码错误！无法重置数据。');
+                return;
+            }
+
+            // 清除本地存储的所有数据
+            localStorage.removeItem('digitalWill');
+            localStorage.removeItem('hasSetPassword');
+            
+            // 回到初始步骤（设置密码）
+            document.getElementById('main').classList.remove('active');
+            document.getElementById('step1').classList.add('active');
+            currentStep = 1;
+            
+            // 清空所有输入框
+            document.getElementById('password').value = '';
+            document.getElementById('password-confirm').value = '';
+            document.getElementById('contact-name').value = '';
+            document.getElementById('contact-phone').value = '';
+            document.getElementById('file-location').value = '';
+            document.getElementById('last-words').value = '';
+            document.getElementById('other-notes').value = '';
+            document.getElementById('donate-no').checked = true;
+
+            alert('所有数据已成功清除！现在可以重新设置密码和录入信息。');
+        }
+
         function updateStatus() {
             const encrypted = localStorage.getItem('digitalWill');
             if (!encrypted) return;
@@ -520,9 +541,7 @@
             }
         }
 
-        // 页面加载时绑定事件
         window.onload = function() {
-            // 步骤1下一步
             document.getElementById('step1-next').addEventListener('click', function() {
                 hideAllErrors();
                 const pwd = document.getElementById('password').value;
@@ -538,7 +557,6 @@
                 goToStep(2);
             });
 
-            // 步骤2上一步/下一步
             document.getElementById('step2-prev').addEventListener('click', () => goToStep(1));
             document.getElementById('step2-next').addEventListener('click', function() {
                 hideAllErrors();
@@ -555,21 +573,19 @@
                 goToStep(3);
             });
 
-            // 步骤3上一步/保存
             document.getElementById('step3-prev').addEventListener('click', () => goToStep(2));
             document.getElementById('save-btn').addEventListener('click', saveData);
 
-            // 签到/编辑按钮
             document.getElementById('checkin-btn').addEventListener('click', checkin);
             document.getElementById('edit-btn').addEventListener('click', openEditForm);
+            // 绑定重置按钮事件
+            document.getElementById('reset-btn').addEventListener('click', resetAllData);
 
-            // 编辑弹窗事件
             document.getElementById('cancel-edit').addEventListener('click', function() {
                 document.getElementById('edit-container').style.display = 'none';
             });
             document.getElementById('save-edit').addEventListener('click', saveEditData);
 
-            // 判断是否已设置密码
             const hasSet = localStorage.getItem('hasSetPassword');
             if (hasSet === 'true') {
                 document.getElementById('step1').classList.remove('active');
