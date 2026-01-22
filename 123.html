@@ -260,6 +260,17 @@
             50% { opacity: 0.5; }
             100% { opacity: 1; }
         }
+        /* 权限提示样式 */
+        .permission-tip {
+            background-color: #fff7e6;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #e6a23c;
+            margin-top: 8px;
+            text-align: left;
+            border-left: 3px solid #e6a23c;
+        }
     </style>
 </head>
 <body>
@@ -328,6 +339,10 @@
             <textarea id="last-words-text" placeholder="想对家人/朋友说的最后一段话..." class="last-words-input"></textarea>
             <!-- 语音录制容器 -->
             <div class="voice-recorder" id="voice-recorder">
+                <!-- 权限提示 -->
+                <div class="permission-tip" id="permission-tip">
+                    ⚠️ 录制前请确保：1. 已授予麦克风权限 2. 设备麦克风正常工作 3. 未被其他应用占用
+                </div>
                 <button class="btn record-btn" id="record-btn">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <circle cx="12" cy="12" r="6" fill="white"/>
@@ -345,8 +360,7 @@
                         </svg>
                         播放语音
                     </button>
-                    <!-- 新增音量提示 -->
-                    <p style="font-size: 11px; color: #999; margin-top: 8px;">提示：请确保设备音量已开启</p>
+                    <p style="font-size: 11px; color: #999; margin-top: 8px;">提示：请确保设备音量已开启，可佩戴耳机试听</p>
                 </div>
             </div>
         </div>
@@ -379,7 +393,6 @@
             <div class="dynamic-time" id="dynamic-checkin">
                 未签到
             </div>
-            <!-- 移除倒计时，保留签到时间动态效果 -->
         </div>
         <button class="btn" id="checkin-btn">今日签到</button>
         <button class="btn btn-secondary" style="margin-top: 8px;" id="edit-btn">编辑/查看遗嘱信息</button>
@@ -424,6 +437,9 @@
                 </div>
                 <textarea id="edit-last-words-text" placeholder="想对家人/朋友说的最后一段话..." class="last-words-input"></textarea>
                 <div class="voice-recorder" id="edit-voice-recorder">
+                    <div class="permission-tip" id="edit-permission-tip">
+                        ⚠️ 录制前请确保：1. 已授予麦克风权限 2. 设备麦克风正常工作 3. 未被其他应用占用
+                    </div>
                     <button class="btn record-btn" id="edit-record-btn">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <circle cx="12" cy="12" r="6" fill="white"/>
@@ -440,7 +456,7 @@
                             </svg>
                             播放语音
                         </button>
-                        <p style="font-size: 11px; color: #999; margin-top: 8px;">提示：请确保设备音量已开启</p>
+                        <p style="font-size: 11px; color: #999; margin-top: 8px;">提示：请确保设备音量已开启，可佩戴耳机试听</p>
                     </div>
                 </div>
             </div>
@@ -470,8 +486,6 @@
 
     <script>
         let currentPassword = '';
-        let mediaRecorder = null;
-        let audioChunks = [];
         let recordTimerInterval = null;
         let recordSeconds = 0;
         const MAX_RECORD_SECONDS = 60; // 1分钟录制限制
@@ -497,7 +511,7 @@
             });
         }
 
-        // 初始化语音录制功能（修复播放无声音问题）
+        // 修复核心：兼容所有浏览器的录音功能（改用Web Audio API+ScriptProcessor）
         function initVoiceRecorder(isEdit = false) {
             const prefix = isEdit ? 'edit-' : '';
             const recordBtn = document.getElementById(`${prefix}record-btn`);
@@ -505,68 +519,74 @@
             const statusEl = document.getElementById(`${prefix}record-status`);
             const previewEl = document.getElementById(`${prefix}voice-preview`);
             const playBtn = document.getElementById(`${prefix}play-btn`);
+            
+            let audioContext = null;
+            let mediaStream = null;
+            let scriptProcessor = null;
+            let gainNode = null;
+            let audioChunks = [];
+            let isRecording = false;
             let audioBlob = null;
-            let audioUrl = ''; // 保存音频URL，避免重复创建
+            let audioUrl = '';
 
-            recordBtn.addEventListener('click', async function() {
-                if (mediaRecorder && mediaRecorder.state === 'recording') {
-                    // 停止录制
-                    mediaRecorder.stop();
-                    recordBtn.innerHTML = `
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="12" cy="12" r="6" fill="white"/>
-                        </svg>
-                        重新录制
-                    `;
-                    recordBtn.classList.remove('recording');
-                    clearInterval(recordTimerInterval);
-                    statusEl.textContent = '录制完成，可点击播放预览';
-                    previewEl.classList.add('active');
-                    return;
-                }
-
-                // 开始录制 - 修复音频格式，增加采样率确保兼容性
+            // 初始化AudioContext（兼容不同浏览器前缀）
+            function initAudioContext() {
                 try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                    audioContext = new AudioContext();
+                    return true;
+                } catch (e) {
+                    console.error('AudioContext初始化失败：', e);
+                    statusEl.textContent = '浏览器不支持录音功能，请更换Chrome/Edge/Safari浏览器';
+                    return false;
+                }
+            }
+
+            // 开始录制
+            async function startRecording() {
+                if (!audioContext && !initAudioContext()) return;
+
+                try {
+                    // 获取麦克风流（强制开启音频轨道）
+                    mediaStream = await navigator.mediaDevices.getUserMedia({
                         audio: {
-                            sampleRate: 44100, // 标准采样率，提升兼容性
-                            channelCount: 1,   // 单声道，减少文件体积
-                            volume: 1.0        // 最大音量录制
-                        } 
+                            mandatory: {
+                                googEchoCancellation: false,
+                                googAutoGainControl: false,
+                                googNoiseSuppression: false,
+                                googHighpassFilter: false
+                            },
+                            optional: []
+                        }
                     });
-                    // 改用MP3格式（兼容性更好），若浏览器不支持则降级为webm
-                    const options = { mimeType: 'audio/mpeg; codecs=mp3' };
-                    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                        options.mimeType = 'audio/webm; codecs=opus';
-                    }
-                    mediaRecorder = new MediaRecorder(stream, options);
+
+                    // 创建音频节点
+                    const sourceNode = audioContext.createMediaStreamSource(mediaStream);
+                    gainNode = audioContext.createGain();
+                    // 创建ScriptProcessor（用于处理音频数据）
+                    scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+
+                    // 连接音频节点
+                    sourceNode.connect(gainNode);
+                    gainNode.connect(scriptProcessor);
+                    scriptProcessor.connect(audioContext.destination);
+
+                    // 处理音频数据
+                    scriptProcessor.onaudioprocess = function(e) {
+                        if (!isRecording) return;
+                        // 复制音频数据（单声道）
+                        const inputBuffer = e.inputBuffer;
+                        const channelData = inputBuffer.getChannelData(0);
+                        audioChunks.push(new Float32Array(channelData));
+                    };
+
+                    // 重置状态
                     audioChunks = [];
                     recordSeconds = 0;
                     timerEl.textContent = '00:00';
                     statusEl.textContent = '正在录制...最长1分钟';
                     previewEl.classList.remove('active');
-                    // 释放之前的音频URL，避免内存泄漏
-                    if (audioUrl) {
-                        URL.revokeObjectURL(audioUrl);
-                        audioUrl = '';
-                    }
-
-                    mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
-                    mediaRecorder.onstop = () => {
-                        audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
-                        // 停止所有音轨
-                        stream.getTracks().forEach(track => track.stop());
-                    };
-
-                    mediaRecorder.start();
-                    recordBtn.innerHTML = `
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <rect x="6" y="4" width="4" height="16" fill="white"/>
-                            <rect x="14" y="4" width="4" height="16" fill="white"/>
-                        </svg>
-                        停止录制
-                    `;
-                    recordBtn.classList.add('recording');
+                    isRecording = true;
 
                     // 启动计时器
                     recordTimerInterval = setInterval(() => {
@@ -577,41 +597,80 @@
 
                         // 达到1分钟自动停止
                         if (recordSeconds >= MAX_RECORD_SECONDS) {
-                            mediaRecorder.stop();
-                            recordBtn.innerHTML = `
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <circle cx="12" cy="12" r="6" fill="white"/>
-                                </svg>
-                                重新录制
-                            `;
-                            recordBtn.classList.remove('recording');
-                            clearInterval(recordTimerInterval);
-                            statusEl.textContent = '录制已达1分钟上限';
-                            previewEl.classList.add('active');
+                            stopRecording();
                         }
                     }, 1000);
+
+                    // 更新按钮状态
+                    recordBtn.innerHTML = `
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="6" y="4" width="4" height="16" fill="white"/>
+                            <rect x="14" y="4" width="4" height="16" fill="white"/>
+                        </svg>
+                        停止录制
+                    `;
+                    recordBtn.classList.add('recording');
+
                 } catch (e) {
                     console.error('录制失败：', e);
-                    statusEl.textContent = '录制失败，请允许麦克风权限后重试';
+                    if (e.name === 'NotAllowedError') {
+                        statusEl.textContent = '麦克风权限被拒绝，请在浏览器设置中允许权限后重试';
+                    } else if (e.name === 'NotFoundError') {
+                        statusEl.textContent = '未找到麦克风设备，请连接麦克风后重试';
+                    } else {
+                        statusEl.textContent = '录制失败：' + e.message;
+                    }
                 }
-            });
+            }
 
-            // 播放预览 - 修复无声音问题
-            playBtn.addEventListener('click', function() {
-                if (!audioBlob) return;
-                
-                // 重新创建音频URL（确保每次播放都是最新的）
+            // 停止录制
+            function stopRecording() {
+                if (!isRecording) return;
+
+                // 停止音频处理
+                if (scriptProcessor) {
+                    scriptProcessor.onaudioprocess = null;
+                    scriptProcessor.disconnect();
+                }
+                if (gainNode) gainNode.disconnect();
+                if (mediaStream) {
+                    mediaStream.getTracks().forEach(track => track.stop());
+                }
+
+                // 停止计时器
+                clearInterval(recordTimerInterval);
+                isRecording = false;
+
+                // 转换音频数据为Blob（WAV格式，兼容性最强）
+                const audioBlob = convertFloat32ArrayToWav(audioChunks);
+                this.audioBlob = audioBlob;
+
+                // 更新UI
+                recordBtn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="6" fill="white"/>
+                    </svg>
+                    重新录制
+                `;
+                recordBtn.classList.remove('recording');
+                statusEl.textContent = '录制完成，可点击播放预览';
+                previewEl.classList.add('active');
+            }
+
+            // 播放预览（WAV格式兼容性最强）
+            function playPreview() {
+                if (!this.audioBlob) return;
+
+                // 释放之前的URL
                 if (audioUrl) {
                     URL.revokeObjectURL(audioUrl);
                 }
-                audioUrl = URL.createObjectURL(audioBlob);
+
+                audioUrl = URL.createObjectURL(this.audioBlob);
                 const audio = new Audio(audioUrl);
-                
-                // 强制设置音量为最大（解决默认音量过低问题）
-                audio.volume = 1.0;
-                // 自动播放（部分浏览器需用户交互后触发，此处已满足）
+                audio.volume = 1.0; // 最大音量
+
                 audio.play().then(() => {
-                    // 播放状态提示
                     const originalText = playBtn.innerHTML;
                     playBtn.innerHTML = `
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -628,22 +687,91 @@
                     };
                 }).catch(err => {
                     console.error('播放失败：', err);
-                    statusEl.textContent = '播放失败，请检查设备音量或浏览器权限';
+                    statusEl.textContent = '播放失败，请检查设备音量或更换浏览器';
                 });
+            }
+
+            // 绑定按钮事件
+            recordBtn.addEventListener('click', () => {
+                if (isRecording) {
+                    stopRecording.call(this);
+                } else {
+                    startRecording.call(this);
+                }
             });
 
-            // 暴露音频Blob获取方法（用于保存）
+            playBtn.addEventListener('click', playPreview.bind(this));
+
+            // 暴露必要方法和属性
             return {
-                getAudioBlob: () => audioBlob,
-                setAudioBlob: (blob) => { 
-                    audioBlob = blob;
-                    // 重置音频URL
-                    if (audioUrl) {
-                        URL.revokeObjectURL(audioUrl);
-                        audioUrl = '';
-                    }
-                }
+                getAudioBlob: () => this.audioBlob,
+                setAudioBlob: (blob) => { this.audioBlob = blob; }
             };
+        }
+
+        // 工具函数：将Float32Array音频数据转换为WAV格式（确保所有浏览器可播放）
+        function convertFloat32ArrayToWav(chunks) {
+            // 合并所有音频片段
+            const totalLength = chunks.reduce((len, chunk) => len + chunk.length, 0);
+            const mergedBuffer = new Float32Array(totalLength);
+            let offset = 0;
+            chunks.forEach(chunk => {
+                mergedBuffer.set(chunk, offset);
+                offset += chunk.length;
+            });
+
+            // 转换为16位PCM
+            const int16Array = new Int16Array(mergedBuffer.length);
+            for (let i = 0; i < mergedBuffer.length; i++) {
+                const sample = Math.max(-1, Math.min(1, mergedBuffer[i]));
+                int16Array[i] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+            }
+
+            // 创建WAV文件头
+            const sampleRate = 44100;
+            const numChannels = 1;
+            const bytesPerSample = 2;
+            const blockAlign = numChannels * bytesPerSample;
+            const byteRate = sampleRate * blockAlign;
+            const dataSize = int16Array.length * bytesPerSample;
+            const totalSize = 44 + dataSize;
+
+            const wavBuffer = new ArrayBuffer(totalSize);
+            const view = new DataView(wavBuffer);
+
+            // 写入WAV头
+            view.setUint8(0, 'R'.charCodeAt(0));
+            view.setUint8(1, 'I'.charCodeAt(0));
+            view.setUint8(2, 'F'.charCodeAt(0));
+            view.setUint8(3, 'F'.charCodeAt(0));
+            view.setUint32(4, totalSize - 8, true);
+            view.setUint8(8, 'W'.charCodeAt(0));
+            view.setUint8(9, 'A'.charCodeAt(0));
+            view.setUint8(10, 'V'.charCodeAt(0));
+            view.setUint8(11, 'E'.charCodeAt(0));
+            view.setUint8(12, 'f'.charCodeAt(0));
+            view.setUint8(13, 'm'.charCodeAt(0));
+            view.setUint8(14, 't'.charCodeAt(0));
+            view.setUint8(15, ' '.charCodeAt(0));
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true); // PCM格式
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, byteRate, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, 16, true); // 16位
+            view.setUint8(36, 'd'.charCodeAt(0));
+            view.setUint8(37, 'a'.charCodeAt(0));
+            view.setUint8(38, 't'.charCodeAt(0));
+            view.setUint8(39, 'a'.charCodeAt(0));
+            view.setUint32(40, dataSize, true);
+
+            // 写入音频数据
+            for (let i = 0; i < int16Array.length; i++) {
+                view.setInt16(44 + i * 2, int16Array[i], true);
+            }
+
+            return new Blob([wavBuffer], { type: 'audio/wav' });
         }
 
         // 初始化动态签到时间（秒数跳动效果）
@@ -656,7 +784,6 @@
                 const minutes = date.getMinutes().toString().padStart(2, '0');
                 const seconds = date.getSeconds().toString().padStart(2, '0');
                 
-                // 返回带闪烁冒号的时间字符串
                 return `${year}-${month}-${day} ${hours}<span class="blinking">:</span>${minutes}<span class="blinking">:</span>${seconds}`;
             }
 
@@ -674,14 +801,12 @@
                     const tempData = JSON.parse(tempStr);
                     const lastCheckinTime = new Date(tempData.checkin.lastTime);
                     
-                    // 每秒更新一次秒数和闪烁冒号
                     checkinEl.innerHTML = formatDateTime(lastCheckinTime);
                 } catch (e) {
                     checkinEl.innerHTML = '获取失败';
                 }
             }
 
-            // 初始更新一次，之后每秒更新（实现秒数跳动）
             updateCheckinTime();
             setInterval(updateCheckinTime, 1000);
         }
@@ -710,17 +835,8 @@
             });
         }
 
-        function base64ToBlob(base64, mimeType) {
-            // 自动识别MIME类型（如果未指定）
-            if (!mimeType) {
-                const mimeMatch = base64.match(/^data:(.+);base64,/);
-                if (mimeMatch) {
-                    mimeType = mimeMatch[1];
-                    base64 = base64.replace(mimeMatch[0], '');
-                } else {
-                    mimeType = 'audio/mpeg'; // 默认MP3格式
-                }
-            }
+        function base64ToBlob(base64, mimeType = 'audio/wav') {
+            if (!mimeType) mimeType = 'audio/wav';
             const byteCharacters = atob(base64);
             const byteArrays = [];
             for (let offset = 0; offset < byteCharacters.length; offset += 512) {
@@ -808,12 +924,11 @@
                     content: textContent
                 };
             } else {
-                // 语音转Base64存储（保留MIME类型，确保播放兼容性）
                 const audioBase64 = await blobToBase64(audioBlob);
                 lastWordsData = {
                     type: 'voice',
                     content: audioBase64,
-                    mimeType: audioBlob.type // 保存音频格式
+                    mimeType: 'audio/wav' // 固定为WAV格式，确保兼容性
                 };
             }
 
@@ -825,7 +940,7 @@
                 },
                 will: {
                     fileLocation: document.getElementById('file-location').value,
-                    lastWords: lastWordsData, // 存储类型+内容+格式
+                    lastWords: lastWordsData,
                     donateOrgan: document.querySelector('input[name="donate"]:checked').value,
                     otherNotes: document.getElementById('other-notes').value
                 },
@@ -860,7 +975,6 @@
                 return;
             }
 
-            // 更新签到时间（精确到秒）
             const now = new Date();
             data.checkin.lastTime = now.toLocaleString();
             data.checkin.nextDeadline = new Date(Date.now() + data.contact.interval * 24 * 60 * 60 * 1000).toLocaleString();
@@ -884,7 +998,7 @@
             }
 
             currentPassword = password;
-            const lastWords = data.will.lastWords || { type: 'text', content: '', mimeType: 'audio/mpeg' };
+            const lastWords = data.will.lastWords || { type: 'text', content: '', mimeType: 'audio/wav' };
 
             // 填充表单数据
             document.getElementById('edit-contact-name').value = data.contact.name;
@@ -903,10 +1017,8 @@
                 document.getElementById('edit-type-voice').checked = true;
                 document.getElementById('edit-last-words-text').style.display = 'none';
                 document.getElementById('edit-voice-recorder').classList.add('active');
-                // 还原语音Blob（使用保存的MIME类型）
                 const audioBlob = base64ToBlob(lastWords.content, lastWords.mimeType);
                 editVoiceRecorder.setAudioBlob(audioBlob);
-                // 显示预览
                 document.getElementById('edit-voice-preview').classList.add('active');
                 document.getElementById('edit-record-status').textContent = '已加载原有录音，可重新录制';
             }
@@ -948,7 +1060,7 @@
                 lastWordsData = {
                     type: 'voice',
                     content: audioBase64,
-                    mimeType: audioBlob.type
+                    mimeType: 'audio/wav'
                 };
             }
 
@@ -1025,14 +1137,12 @@
         }
 
         function updateStatus() {
-            // 动态签到时间由initDynamicCheckin函数每秒更新，此处仅触发初始加载
             const encrypted = localStorage.getItem('digitalWill');
             if (!encrypted) return;
 
             try {
                 const tempStr = base64ToUtf8(encrypted).split('|')[0];
                 const tempData = JSON.parse(tempStr);
-                // 触发一次签到时间更新
                 const checkinEl = document.getElementById('dynamic-checkin');
                 const lastCheckinTime = new Date(tempData.checkin.lastTime);
                 checkinEl.innerHTML = `${lastCheckinTime.getFullYear()}-${(lastCheckinTime.getMonth() + 1).toString().padStart(2, '0')}-${lastCheckinTime.getDate().toString().padStart(2, '0')} ${lastCheckinTime.getHours().toString().padStart(2, '0')}<span class="blinking">:</span>${lastCheckinTime.getMinutes().toString().padStart(2, '0')}<span class="blinking">:</span>${lastCheckinTime.getSeconds().toString().padStart(2, '0')}`;
@@ -1046,7 +1156,7 @@
             initVoiceTextSwitch();
             mainVoiceRecorder = initVoiceRecorder(false);
             editVoiceRecorder = initVoiceRecorder(true);
-            initDynamicCheckin(); // 初始化动态签到时间
+            initDynamicCheckin();
 
             // 步骤切换事件
             document.getElementById('step1-next').addEventListener('click', function() {
